@@ -22,6 +22,8 @@ def meets_letter_requirements(word, letter_counts, letters_not_in_word):
 
 
 def meets_no_letter_requirements(word, filter_letters):
+    """Function that removes words that contain forbidden letters"""
+
     for char in filter_letters:
         if char in word:
             return False
@@ -72,17 +74,18 @@ def word_finder(word_length: int,
     if letters_without_position is None and letters_with_position is None:
         return "To many words..."
 
+    # Read the file and create a NumPy array of words
+    with open("clear_words.txt", 'r') as infile:
+        words = np.array([line.strip() for line in infile])
+
+    # Filter words based on length
+    length_mask = np.vectorize(len)(words) == word_length
+    filtered_words = words[length_mask]
+
+    # Filter word with letters which positions we know
     if letters_with_position:
         if len(letters_with_position) != word_length:
             raise ValueError("Pattern length must match the specified word length.")
-
-        # Read the file and create a NumPy array of words
-        with open("clear_words.txt", 'r') as infile:
-            words = np.array([line.strip() for line in infile])
-
-        # Filter words based on length
-        length_mask = np.vectorize(len)(words) == word_length
-        filtered_words = words[length_mask]
 
         # Create a boolean mask for the pattern matching
         pattern = np.array(letters_with_position)
@@ -92,40 +95,41 @@ def word_finder(word_length: int,
             if char is not None:
                 pattern_mask &= np.char.equal(np.char.array([word[i] for word in filtered_words]), char)
 
-        valid_words = filtered_words[pattern_mask]
+        filtered_words = filtered_words[pattern_mask]
 
-        # Check if valid words contain all letters_without_position
-        if letters_without_position:
-            letters_without_position = np.array(letters_without_position)
+    # Check if valid words contain all letters_without_position
+    if letters_without_position:
+        letters_without_position = np.array(letters_without_position)
 
-            all_letters = np.append(letters_with_position, letters_without_position)
-            all_letters = all_letters[all_letters != np.array(None)]
+        all_letters = np.append(letters_with_position, letters_without_position)
+        all_letters = all_letters[all_letters != np.array(None)]
 
-            letter_counts = Counter(all_letters)
+        letter_counts = Counter(all_letters)
 
-            valid_words = np.array(
-                [word for word in valid_words if meets_letter_requirements(word, letter_counts, letters_not_in_word)])
+        filtered_words = np.array(
+            [word for word in filtered_words if meets_letter_requirements(word, letter_counts, letters_not_in_word)])
 
-            valid_words = meets_position_requirements(valid_words, letters_without_position)
+        filtered_words = meets_position_requirements(filtered_words, letters_without_position)
 
-        # Check if words don't contain letters they shouldn't
-        if letters_not_in_word:
-            filter_letters = set(letters_not_in_word)
+    # Check if words don't contain letters they shouldn't
+    if letters_not_in_word:
+        filter_letters = set(letters_not_in_word)
+
+        if letters_with_position is not None:
             flat_letters_with_position = [char for char in letters_with_position if char is not None]
-            if letters_with_position is not None:
-                filter_letters -= set(flat_letters_with_position)
-            if letters_without_position is not None:
-                filter_letters -= set(letters_without_position)
+            filter_letters -= set(flat_letters_with_position)
+        if letters_without_position is not None:
+            filter_letters -= set(letters_without_position)
 
-            filter_letters = list(filter_letters)
+        filter_letters = list(filter_letters)
 
-            valid_words = np.array(
-                [word for word in valid_words if meets_no_letter_requirements(word, filter_letters)])
+        filtered_words = np.array(
+            [word for word in filtered_words if meets_no_letter_requirements(word, filter_letters)])
 
-        return valid_words
+        return filtered_words
 
 
 print(word_finder(word_length=8,
-                  letters_without_position=['i', None, None, None, 't', None, None, 'g'],
                   letters_with_position=[None, None, None, 'i', None, None, 'n', None],
+                  letters_without_position=['i', None, None, None, 't', None, None, 'g'],
                   letters_not_in_word=['p', 'h', 's', 'n', 'd', 'i']))
